@@ -81,7 +81,7 @@ def optimize_variable(variable, robot_file, processes):
     """
     base_value = get_current_value(variable, robot_file)
 
-    precision = 1.0
+    precision = 8.0
 
     while precision >= 0.1:
 
