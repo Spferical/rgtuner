@@ -9,23 +9,22 @@ import copy
 import multiprocessing
 
 
-def make_variants(variable, possibilities):
-    """Makes variants of the original 'sbase.py' file with the constant
-    variable changed for each possibility.
+def make_variants(variable, robot_file, possibilities):
+    """Makes variants of the file robot_file  with the constant variable
+    changed for each possibility.
 
     e.g. if the variable is "ELEPHANTS" and the possibilities are [1, 2, 3],
     this will find the line
     ELEPHANTS = 3
-    in sbase.py and make a copy of the sbase file for each value in
-    possibilities. 1.py will have ELEPHANTS = 1, 2.py will have ELEPHANTS = 2,
-    etc.
+    in robobt_file and make a copy of the file for each value in possibilities.
+    1.py will have ELEPHANTS = 1, 2.py will have ELEPHANTS = 2, etc.
 
-    Raises IndexError if the variable name is not found in sbase.py.
+    Raises IndexError if the variable name is not found in the file robot_file.
     The line assigning the constant variable must be the first line in that
     file has the variable name in it.
     """
     filenames = []
-    with open('sbase.py', 'r') as f:
+    with open(robot_file, 'r') as f:
 
         lines = f.readlines()
 
@@ -47,19 +46,19 @@ def make_variants(variable, possibilities):
     return filenames
 
 
-def get_current_value(variable):
+def get_current_value(variable, robot_file):
     """
-    Returns the value of the constant variable in sbase.py.
+    Returns the value of the constant variable in the robot file.
 
-    This function finds the first line in sbase.py that has the variable name
-    in it, and parses the value after the '=' in that line for a float,
-    returning it.
+    This function finds the first line in the file robot_file that has the
+    variable name in it, and parses the value after the '=' in that line for a
+    float, returning it.
 
-    Raises IndexError if the variable name is not found in sbase.py.
+    Raises IndexError if the variable name is not found in the file robot_file.
     The line assigning the constant variable must be the first line in that
     file has the variable name in it.
     """
-    with open('sbase.py', 'r') as f:
+    with open(robot_file, 'r') as f:
         lines = f.readlines()
 
         i = 0
@@ -73,13 +72,14 @@ def get_current_value(variable):
     return value
 
 
-def optimize_variable(variable, processes):
+def optimize_variable(variable, robot_file, processes):
     """
-    Creates a bunch of variants of sbase.py, each with variable changed, then
-    runs a tournament between the variants to find the best one.
-    sbase.py is modified to contain the best value, and it is returned.
+    Creates a bunch of variants of the file robot_file, each with variable
+    changed, then runs a tournament between the variants to find the best one.
+    The file robot_fily is modified to contain the best value, and it is
+    returned.
     """
-    base_value = get_current_value(variable)
+    base_value = get_current_value(variable, robot_file)
 
     precision = 1.0
 
@@ -94,7 +94,7 @@ def optimize_variable(variable, processes):
             base_value
         ]
 
-        files = make_variants(variable, values_to_test)
+        files = make_variants(variable, robot_file, values_to_test)
         best_file = run_tourney(files, processes)
         best_value = values_to_test[files.index(best_file)]
         if best_value == base_value:
@@ -105,7 +105,8 @@ def optimize_variable(variable, processes):
             base_value = best_value
             print('new \'best\' value is', best_value)
 
-    shutil.copy(make_variants(variable, [base_value])[0], 'sbase.py')
+    shutil.copy(make_variants(variable, robot_file, [base_value])[0],
+                robot_file)
 
     return base_value
 
@@ -205,13 +206,15 @@ def main():
     parser.add_argument(
         "constant", type=str, help='The constant name to optimize.')
     parser.add_argument(
+        "file", type=str, help='The file of the robot to optimize.')
+    parser.add_argument(
         "-p", "--processes",
         default=multiprocessing.cpu_count(),
         type=int, help='The number of processes to simulate in')
     args = vars(parser.parse_args())
 
     best_value = optimize_variable(
-        args['constant'], processes=args['processes'])
+        args['constant'], args['file'], processes=args['processes'])
     print(best_value)
 
 
