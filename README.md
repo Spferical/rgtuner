@@ -19,6 +19,7 @@ slightly better against the old one.
 
 #Usage
 `$ python rgtuner.py [-h] [-p PROCESSES] constant file`
+
 e.g.
 `$ python rgtuner.py -p 6 SURROUND_WEIGHT sfpari.py`
 to optimize the SURROUND_WEIGHT variable in sfpari.py, running comparisons in 6
