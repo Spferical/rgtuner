@@ -72,7 +72,7 @@ def get_current_value(variable, robot_file):
     return value
 
 
-def optimize_variable(variable, robot_file, processes):
+def optimize_variable(enemy, variable, robot_file, processes):
     """
     Creates a bunch of variants of the file robot_file, each with variable
     changed, then runs a tournament between the variants to find the best one.
@@ -95,7 +95,7 @@ def optimize_variable(variable, robot_file, processes):
         ]
 
         files = make_variants(variable, robot_file, values_to_test)
-        best_file = run_tourney(files, processes)
+        best_file = run_tourney(enemy, files, processes)
         best_value = values_to_test[files.index(best_file)]
         if best_value == base_value:
             precision = precision / 2.0
@@ -164,40 +164,33 @@ def versus(bot1, bot2, processes):
         pool.join()
 
         print('overall:', bot1, bot1wins, ':', bot2wins, bot2)
-        if bot1wins > bot2wins:
-            return bot1
-        elif bot2wins > bot1wins:
-            return bot2
-        else:
-            return 'tie'
+        return (bot1wins - bot2wins)
 
     except KeyboardInterrupt:
         print('user did ctrl+c, ABORT EVERYTHING')
         pool.terminate()
         raise KeyboardInterrupt()
 
-def run_tourney(botfiles, processes):
+def run_tourney(enemy, botfiles, processes):
     """Runs a tournament between all bot files in botfiles.
     Returns the winner of the tournament."""
+    bestWin = ['', -5000]
     botfiles = copy.copy(botfiles)
 
-    while len(botfiles) > 1:
+    while len(botfiles) > 0:
         bot1 = botfiles[0]
-        bot2 = botfiles[1]
-        winner = versus(bot1, bot2, processes)
-        while winner == 'tie':
+        winScore = versus(bot1, enemy, processes)
+        while winScore == 0:
             print('VERSUS WAS A TIE. RETRYING...')
-            winner = versus(bot1, bot2, processes)
-        print(winner, 'WON THIS ROUND')
-        if winner == bot1:
-            os.remove(bot2)
-            botfiles.remove(bot2)
-        else: #winner is bot2
-            os.remove(bot1)
-            botfiles.remove(bot1)
+            winScore = versus(bot1, enemy, processes)
+        print('Difference in score:',str(winScore))
+        botfiles.remove(bot1)
+        if winScore > bestWin[1]:
+            bestWin[1] = winScore
+            bestWin[0] = bot1
 
-    print(botfiles[0], 'WON THE TOURNEY!')
-    return botfiles[0]
+    print('Best Score:',str(bestWin[1]))
+    return bestWin[0]
 
 
 def main():
@@ -208,12 +201,14 @@ def main():
     parser.add_argument(
         "file", type=str, help='The file of the robot to optimize.')
     parser.add_argument(
+        "enemy", type=str, help='The enemy file.')
+    parser.add_argument(
         "-p", "--processes",
         default=multiprocessing.cpu_count(),
         type=int, help='The number of processes to simulate in')
     args = vars(parser.parse_args())
 
-    best_value = optimize_variable(
+    best_value = optimize_variable(args['enemy'],
         args['constant'], args['file'], processes=args['processes'])
     print(best_value)
 
