@@ -122,13 +122,15 @@ def run_match(bot1, bot2):
         for line in p.stdout.readlines():
             if line[0] == '[':
                 scores = pall.findall(line)
-
-                if int(scores[0]) > int(scores[1]):
-                    return bot1
-                elif int(scores[1]) > int(scores[0]):
-                    return bot2
+                if scores[0] > scores[1]:
+                    return [int(scores[0]),int(scores[1]), int(scores[0]) - int(scores[1]),bot1]
+                elif scores[1] > scores[0]:
+                    return [int(scores[0]),int(scores[1]), int(scores[0]) - int(scores[1]),bot2]
                 else:
-                    return 'tie'
+                    return [int(scores[0]),int(scores[1]), int(scores[0]) - int(scores[1]),'tie']
+
+
+                
     except KeyboardInterrupt:
         p.terminate()
 
@@ -138,10 +140,10 @@ def versus(bot1, bot2, processes):
     run_match() is run in separate processes, one for each CPU core, until 100
     matches are run.
     Returns the winner, or 'tie' if there was no winner."""
-    bot1wins = 0
-    bot2wins = 0
+    bot1Score = 0
+    bot2Score = 0
 
-    matches_to_run = 100
+    matches_to_run = 50
 
     pool = multiprocessing.Pool(processes)
 
@@ -152,19 +154,18 @@ def versus(bot1, bot2, processes):
                    for i in range(matches_to_run)]
 
         for r in results:
-            winner = r.get(timeout=120)
-            print('battle result:', winner)
-            if winner == bot1:
-                bot1wins += 1
-            elif winner == bot2:
-                bot2wins += 1
+            score = r.get(timeout=120)
+            print('battle result:',score[3], ' difference:', score[2])
+            bot1Score += score[0]
+            bot2Score += score[1]
+            
             #otherwise, it's a tie, but we can ignore it
 
         pool.close()
         pool.join()
 
-        print('overall:', bot1, bot1wins, ':', bot2wins, bot2)
-        return (bot1wins - bot2wins)
+        print('overall:', bot1, bot1Score, ':', bot2Score, bot2)
+        return bot1Score - bot2Score
 
     except KeyboardInterrupt:
         print('user did ctrl+c, ABORT EVERYTHING')
@@ -183,12 +184,15 @@ def run_tourney(enemy, botfiles, processes):
         while winScore == 0:
             print('VERSUS WAS A TIE. RETRYING...')
             winScore = versus(bot1, enemy, processes)
-        print('Difference in score:',str(winScore))
         botfiles.remove(bot1)
         if winScore > bestWin[1]:
             bestWin[1] = winScore
             bestWin[0] = bot1
+        else:
+            os.remove(bot1)
+        print('Difference in score:',str(bestWin[1]))
 
+    
     print('Best Score:',str(bestWin[1]))
     return bestWin[0]
 
