@@ -8,7 +8,7 @@ import shutil
 import copy
 import multiprocessing
 
-
+botScores = {}
 def make_variants(variable, robot_file, possibilities):
     """Makes variants of the file robot_file  with the constant variable
     changed for each possibility.
@@ -180,7 +180,12 @@ def run_tourney(enemy, botfiles, processes):
 
     while len(botfiles) > 0:
         bot1 = botfiles[0]
-        winScore = versus(bot1, enemy, processes)
+        if bot1 in botScores:
+            winScore = botScores[bot1]
+            print('ALREADY SCORED!')
+        else:
+           winScore = versus(bot1, enemy, processes)
+           botScores[bot1] = winScore
         while winScore == 0:
             print('VERSUS WAS A TIE. RETRYING...')
             winScore = versus(bot1, enemy, processes)
