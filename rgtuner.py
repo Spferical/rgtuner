@@ -20,13 +20,14 @@ def make_variants(variable, robot_file, possibilities):
     """
     filenames = []
     with open(robot_file, 'r') as f:
+        lines = f.readlines()
         #i = 0
         #while not variable in lines[i]:
         #    i += 1
-        for i, line in enumerate(f):
+        for i, line in enumerate(lines):
           if variable in line:
             break
-        assert '=' in lines[i]
+        assert '=' in line
         for p in possibilities:
             varandp = variable + str(p)
             #lines[i] = variable + " = " + str(p) + '\n'
