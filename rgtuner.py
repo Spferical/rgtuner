@@ -216,7 +216,7 @@ def main():
     parser.add_argument(
         "file", type=str, help='The file of the robot to optimize.')
     parser.add_argument(
-        "enemies", type=str, help='The enemy file.')
+        "enemies", type=str, help='A comma-separated list of the enemy files.')
     parser.add_argument(
         "-p", "--processes",
         default=multiprocessing.cpu_count(),
