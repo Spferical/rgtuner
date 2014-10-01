@@ -125,9 +125,9 @@ def run_match(bot1, bot2):
                 if scores[0] > scores[1]:
                     return [int(scores[0]),int(scores[1]), int(scores[0]) - int(scores[1]),bot1]
                 elif scores[1] > scores[0]:
-                    return [int(scores[0]),int(scores[1]), int(scores[0]) - int(scores[1]),bot2]
+                    return [int(scores[0]),int(scores[1]), int(scores[1]) - int(scores[0]),bot2]
                 else:
-                    return [int(scores[0]),int(scores[1]), int(scores[0]) - int(scores[1]),'tie']
+                    return [int(scores[0]),int(scores[1]), 0,'tie']
 
 
                 
@@ -197,6 +197,7 @@ def run_tourney(enemies, botfiles, processes):
                 winScore = versus(bot1, enemy, processes)
                 print('Difference in score:',str(bestWin[1]))
             scores[bot1] += winScore
+        print(scores)
     for bot1 in botfiles:
         for bot2 in botfiles:
             if bot1 != bot2 and scores[bot1] == scores[bot2]:
@@ -212,7 +213,7 @@ def run_tourney(enemies, botfiles, processes):
                 else:
                     print("WTF? Impossible Tie.")               
             elif scores[bot1] > bestWin[1]:
-                bestWin[1] = winScore
+                bestWin[1] = scores[bot1]
                 bestWin[0] = bot1
             
 
