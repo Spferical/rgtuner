@@ -143,7 +143,7 @@ def versus(bot1, bot2, processes):
     bot1Score = 0
     bot2Score = 0
 
-    matches_to_run = 5
+    matches_to_run = 50
 
     pool = multiprocessing.Pool(processes)
 
