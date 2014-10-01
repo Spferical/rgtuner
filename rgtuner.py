@@ -20,11 +20,10 @@ def make_variants(variable, robot_file, possibilities):
     """
     filenames = []
     with open(robot_file, 'r') as f:
-        lines = f.readlines()
         #i = 0
         #while not variable in lines[i]:
         #    i += 1
-        for i, line in enumerate(lines):
+        for i, line in enumerate(f):
           if variable in line:
             break
         assert '=' in lines[i]
@@ -121,7 +120,7 @@ def run_match(bot1, bot2):
                 elif scores[1] > scores[0]:
                     return int(scores[0]), int(scores[1]), int(scores[1]) - int(scores[0]),bot2
                 else:
-                    return int(scores[0]), int(scores[1]), 0,'tie'
+                    return int(scores[0]),  int(scores[1]), 0,'tie'
 
 
 
