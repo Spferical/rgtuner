@@ -7,7 +7,7 @@ import os
 import shutil
 import copy
 import multiprocessing
-
+filesRemaining = []
 botScores = {}
 def make_variants(variable, robot_file, possibilities):
     """Makes variants of the file robot_file  with the constant variable
@@ -107,7 +107,7 @@ def optimize_variable(enemies, variable, robot_file, processes):
 
     shutil.copy(make_variants(variable, robot_file, [base_value])[0],
                 robot_file)
-
+    
     return base_value
 
 def run_match(bot1, bot2):
@@ -170,6 +170,8 @@ def versus(bot1, bot2, processes):
     except KeyboardInterrupt:
         print('user did ctrl+c, ABORT EVERYTHING')
         pool.terminate()
+        for bot in filesRemaining:
+            os.remove(bot)
         raise KeyboardInterrupt()
 
 def run_tourney(enemies, botfiles, processes):
@@ -180,6 +182,7 @@ def run_tourney(enemies, botfiles, processes):
     botfiles = copy.copy(botfiles)
     botfilesCopy = copy.copy(botfiles)
     for bot1 in botfiles:
+        filesRemaining.append(bot1)
         scores[bot1] = 0
     for enemy in enemies:
         for bot1 in botfiles:
@@ -195,15 +198,31 @@ def run_tourney(enemies, botfiles, processes):
                 print('Difference in score:',str(bestWin[1]))
             scores[bot1] += winScore
     for bot1 in botfiles:
-        if scores[bot1] > bestWin[1]:
-            bestWin[1] = winScore
-            bestWin[0] = bot1
+        for bot2 in botfiles:
+            if bot1 != bot2 and scores[bot1] == scores[bot2]:
+                print("Two bots have same score, finding the winner")
+                bestWin[1] = versus(bot1, bot2, processes)
+                while bestWin[1] == 0:
+                    print("Wow. Another Tie.")
+                    bestWin[1] = versus(bot1, bot2, processes)
+                if bestWin[1] < 0:
+                    bestWin[0] = bot2
+                elif bestWin[1] > 0:
+                    bestWin[0] = bot1
+                else:
+                    print("WTF? Impossible Tie.")               
+            elif scores[bot1] > bestWin[1]:
+                bestWin[1] = winScore
+                bestWin[0] = bot1
+            
+
             
 
     for bf in botfilesCopy:
         if not bf == bestWin[0]:
             print('removing',bf)
             os.remove(bf)
+            filesRemaining.remove(bf)
     print('Best Score:',str(bestWin[1]))
     return bestWin[0]
 
