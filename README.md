@@ -18,9 +18,9 @@ slightly better against the old one.
 - rgkit
 
 #Usage
-`$ python rgtuner.py [-h] [-p PROCESSES] constant file`
+`$ python rgtuner.py [-h] [-p PROCESSES] constant file enemyfile`
 
 e.g.
-`$ python rgtuner.py -p 6 SURROUND_WEIGHT sfpari.py`
-to optimize the SURROUND_WEIGHT variable in sfpari.py, running comparisons in 6
+`$ python rgtuner.py -p 6 SURROUND_WEIGHT sfpari.py stupid.py`
+to optimize the SURROUND_WEIGHT variable in sfpari.py against stupid.py, running comparisons in 6
 different processes.
