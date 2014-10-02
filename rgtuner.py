@@ -4,7 +4,6 @@ import os
 import multiprocessing
 import re
 import subprocess
-from rgkit import game
 filesRemaining = []
 botScores = {}
 def make_variants(variable, robot_file, possibilities):
