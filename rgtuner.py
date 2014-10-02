@@ -2,6 +2,7 @@
 from __future__ import print_function
 import os
 import multiprocessing
+import re
 filesRemaining = []
 botScores = {}
 def make_variants(variable, robot_file, possibilities):
@@ -80,11 +81,8 @@ def optimize_variable(enemies, variable, robot_file, processes):
         print('RUNNING WITH BASE VALUE', base_value, \
                 'PRECISION', precision)
 
-        values_to_test = [
-            base_value - precision,
-            base_value + precision,
-            base_value
-        ]
+        values_to_test = [base_value - precision,
+            base_value + precision, base_value]
 
         files = make_variants(variable, robot_file, values_to_test)
         best_file = run_tourney(enemies, files, pool)
@@ -103,30 +101,19 @@ def optimize_variable(enemies, variable, robot_file, processes):
     return base_value
 
 def run_match(bot1, bot2):
-    import re
-    import subprocess
-    """Runs a match between two robot files."""
-    p = subprocess.Popen(
-        'rgrun -H ' + bot1 + ' ' + bot2,
-        shell=True, stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT)
-    pall = re.compile('\d+')
-
-    try:
-        for line in p.stdout.readlines():
-            if line[0] == '[':
-                scores = pall.findall(line)
-                if scores[0] > scores[1]:
-                    return int(scores[0]), int(scores[1]), int(scores[0]) - int(scores[1]),bot1
-                elif scores[1] > scores[0]:
-                    return int(scores[0]), int(scores[1]), int(scores[1]) - int(scores[0]),bot2
-                else:
-                    return int(scores[0]),  int(scores[1]), 0,'tie'
-
-
-
-    except KeyboardInterrupt:
-        p.terminate()
+    #what is this???
+    import random
+    from rgkit.run import Runner, Options
+    from rgkit.settings import settings as default_settings
+    #rgkit integration
+    runner = Runner(player_files=(bot1,bot2), options=Options(quiet=4, game_seed=random.randint(0, default_settings.max_seed)))
+    scores0, scores1 = runner.run()[0]
+    if scores0 > scores1:
+      return (scores0, scores1, scores0 - scores1, bot1)
+    elif scores1 > scores0:
+      return (scores0, scores1, scores1 - scores0, bot2)
+    else:
+      return (scores0, scores1, 0,'tie')
 
 
 def versus(bot1, bot2, pool):
@@ -142,12 +129,11 @@ def versus(bot1, bot2, pool):
     try:
         results = [pool.apply_async(run_match, (bot1, bot2))
                    for i in xrange(matches_to_run)]
-
         for r in results:
-            score = r.get(timeout=120)
-            print('battle result:',score[3], ' difference:', score[2])
-            bot1Score += score[0]
-            bot2Score += score[1]
+            s0, s1, s2, s3 = r.get(timeout=120)
+            print('battle result:',s3, ' difference:', s2)
+            bot1Score += s0
+            bot2Score += s1
 
             #otherwise, it's a tie, but we can ignore it
 
@@ -162,12 +148,10 @@ def versus(bot1, bot2, pool):
         raise KeyboardInterrupt()
 
 def run_tourney(enemies, botfiles, pool):
-    import copy
     """Runs a tournament between all bot files in botfiles.
     Returns the winner of the tournament."""
     bestWin = ['', -5000]
     scores = {}
-    botfilesCopy = copy.copy(botfiles)
     for bot1 in botfiles:
         filesRemaining.append(bot1)
         scores[bot1] = 0
@@ -203,10 +187,7 @@ def run_tourney(enemies, botfiles, pool):
                 bestWin[1] = scores[bot1]
                 bestWin[0] = bot1
 
-
-
-
-    for bf in botfilesCopy:
+    for bf in botfiles:
         if not bf == bestWin[0]:
             print('removing',bf)
             os.remove(bf)
