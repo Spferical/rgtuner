@@ -3,7 +3,6 @@ from __future__ import print_function
 import os
 import multiprocessing
 import re
-import subprocess
 filesRemaining = []
 botScores = {}
 def make_variants(variable, robot_file, possibilities):
