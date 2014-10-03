@@ -64,7 +64,7 @@ def get_current_value(variable, robot_file):
     return float(line[line.index('=') + 1:])
 
 
-def optimize_variable(enemies, variable, robot_file, processes):
+def optimize_variable(precisionParam, matchNum, enemies, variable, robot_file, processes):
     import shutil
     pool = multiprocessing.Pool(processes)
     """
@@ -75,7 +75,7 @@ def optimize_variable(enemies, variable, robot_file, processes):
     """
     base_value = get_current_value(variable, robot_file)
 
-    precision = 8.0
+    precision = precisionParam
 
     while precision >= 0.1:
         print('RUNNING WITH BASE VALUE', base_value, \
@@ -85,7 +85,7 @@ def optimize_variable(enemies, variable, robot_file, processes):
             base_value + precision, base_value]
 
         files = make_variants(variable, robot_file, values_to_test)
-        best_file = run_tourney(enemies, files, pool)
+        best_file = run_tourney(matchNum,enemies, files, pool)
         best_value = values_to_test[files.index(best_file)]
         if best_value == base_value:
             precision /= 2.0
@@ -116,7 +116,7 @@ def run_match(bot1, bot2):
       return (scores0, scores1, 0,'tie')
 
 
-def versus(bot1, bot2, pool):
+def versus(matchNum,bot1, bot2, pool):
     """Launches a multithreaded comparison between two robot files.
     run_match() is run in separate processes, one for each CPU core, until 100
     matches are run.
@@ -124,7 +124,7 @@ def versus(bot1, bot2, pool):
     bot1Score = 0
     bot2Score = 0
 
-    matches_to_run = 50
+    matches_to_run = matchNum
 
     try:
         results = [pool.apply_async(run_match, (bot1, bot2))
@@ -147,7 +147,7 @@ def versus(bot1, bot2, pool):
             os.remove(bot)
         raise KeyboardInterrupt()
 
-def run_tourney(enemies, botfiles, pool):
+def run_tourney(matchNum,enemies, botfiles, pool):
     """Runs a tournament between all bot files in botfiles.
     Returns the winner of the tournament."""
     bestWin = ['', -5000]
@@ -161,11 +161,11 @@ def run_tourney(enemies, botfiles, pool):
                 winScore = botScores[enemy][bot1]
                 print('ALREADY SCORED',str(bot1))
             else:
-                winScore = versus(bot1, enemy, pool)
+                winScore = versus(matchNum,bot1, enemy, pool)
                 botScores[enemy][bot1] = winScore
             while winScore == 0:
                 print('VERSUS WAS A TIE. RETRYING...')
-                winScore = versus(bot1, enemy, pool)
+                winScore = versus(matchNum,bot1, enemy, pool)
                 print('Difference in score:',str(bestWin[1]))
             scores[bot1] += winScore
         print(scores)
@@ -173,10 +173,10 @@ def run_tourney(enemies, botfiles, pool):
         for bot2 in botfiles:
             if bot1 != bot2 and scores[bot1] == scores[bot2]:
                 print("Two bots have same score, finding the winner")
-                bestWin[1] = versus(bot1, bot2, pool)
+                bestWin[1] = versus(matchNum,bot1, bot2, pool)
                 while bestWin[1] == 0:
                     print("Wow. Another Tie.")
-                    bestWin[1] = versus(bot1, bot2, pool)
+                    bestWin[1] = versus(matchNum,bot1, bot2, pool)
                 if bestWin[1] < 0:
                     bestWin[0] = bot2
                 elif bestWin[1] > 0:
@@ -207,6 +207,14 @@ def main():
     parser.add_argument(
         "enemies", type=str, help='A comma-separated list of the enemy files.')
     parser.add_argument(
+        "-pr", "--precision",
+        default=8.0,
+        type=float, help='The precision to start adjusting values at')
+    parser.add_argument(
+        "-m", "--matches",
+        default=100,
+        type=int, help='The number of matches to run per tourney')
+    parser.add_argument(
         "-p", "--processes",
         default=multiprocessing.cpu_count(),
         type=int, help='The number of processes to simulate in')
@@ -214,7 +222,7 @@ def main():
     eList = args['enemies'].split(',')
     for e in eList:
         botScores[e] = {}
-    best_value = optimize_variable(eList,
+    best_value = optimize_variable(args['precision'],args['matches'],eList,
         args['constant'], args['file'], processes=args['processes'])
     print(best_value)
 
