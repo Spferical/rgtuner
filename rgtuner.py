@@ -1,14 +1,15 @@
 #!/usr/bin/env python2
 from __future__ import print_function
-import argparse
-import subprocess
-import re
 import os
-import shutil
-import copy
 import multiprocessing
+import re
+import shutil
+import argparse
 filesRemaining = []
 botScores = {}
+import random
+from rgkit.run import Runner, Options
+from rgkit.settings import settings as default_settings
 def make_variants(variable, robot_file, possibilities):
     """Makes variants of the file robot_file  with the constant variable
     changed for each possibility.
@@ -25,21 +26,17 @@ def make_variants(variable, robot_file, possibilities):
     """
     filenames = []
     with open(robot_file, 'r') as f:
-
         lines = f.readlines()
-
-        i = 0
-        while not variable in lines[i]:
-            i += 1
-
-        assert '=' in lines[i]
-
+       
+        for i, line in enumerate(lines):
+          if variable in line:
+            break
+        assert '=' in line
         for p in possibilities:
-
-            lines[i] = variable + " = " + str(p) + '\n'
-            filenames.append(variable + str(p))
-
-            with open(variable + str(p), 'w') as pfile:
+            varandp = variable + str(p)
+            lines[i] = "%s = %s\n" % (variable, p)
+            filenames.append(varandp)
+            with open(varandp, 'w') as pfile:
                 for line in lines:
                     pfile.write(line)
 
@@ -59,20 +56,15 @@ def get_current_value(variable, robot_file):
     file has the variable name in it.
     """
     with open(robot_file, 'r') as f:
-        lines = f.readlines()
-
-        i = 0
-        while not variable in lines[i]:
-            i += 1
-
-        assert '=' in lines[i]
-
-        value = float(lines[i][lines[i].index('=') + 1:])
-
-    return value
+        for i, line in enumerate(f):
+          if variable in line:
+            break
+        assert '=' in line
+    return float(line[line.index('=') + 1:])
 
 
-def optimize_variable(enemies, variable, robot_file, processes):
+def optimize_variable(precisionParam, matchNum, enemies, variable, robot_file, processes):
+    pool = multiprocessing.Pool(processes)
     """
     Creates a bunch of variants of the file robot_file, each with variable
     changed, then runs a tournament between the variants to find the best one.
@@ -81,24 +73,20 @@ def optimize_variable(enemies, variable, robot_file, processes):
     """
     base_value = get_current_value(variable, robot_file)
 
-    precision = 8.0
+    precision = precisionParam
 
     while precision >= 0.1:
-
         print('RUNNING WITH BASE VALUE', base_value, \
                 'PRECISION', precision)
 
-        values_to_test = [
-            base_value - precision,
-            base_value + precision,
-            base_value
-        ]
+        values_to_test = [base_value - precision,
+            base_value + precision, base_value]
 
         files = make_variants(variable, robot_file, values_to_test)
-        best_file = run_tourney(enemies, files, processes)
+        best_file = run_tourney(matchNum,enemies, files, pool)
         best_value = values_to_test[files.index(best_file)]
         if best_value == base_value:
-            precision = precision / 2.0
+            precision /= 2.0
             print('best value remains', best_value)
             print('decreasing precision to', precision)
         else:
@@ -107,35 +95,22 @@ def optimize_variable(enemies, variable, robot_file, processes):
 
     shutil.copy(make_variants(variable, robot_file, [base_value])[0],
                 robot_file)
-    
+
     return base_value
 
-def run_match(bot1, bot2):
-    """Runs a match between two robot files."""
-    p = subprocess.Popen(
-        'rgrun -H ' + bot1 + ' ' + bot2,
-        shell=True, stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT)
-    pall = re.compile('\d+')
-
-    try:
-        for line in p.stdout.readlines():
-            if line[0] == '[':
-                scores = pall.findall(line)
-                if scores[0] > scores[1]:
-                    return [int(scores[0]),int(scores[1]), int(scores[0]) - int(scores[1]),bot1]
-                elif scores[1] > scores[0]:
-                    return [int(scores[0]),int(scores[1]), int(scores[1]) - int(scores[0]),bot2]
-                else:
-                    return [int(scores[0]),int(scores[1]), 0,'tie']
+def run_match(bot1, bot2):   
+    #rgkit integration
+    runner = Runner(player_files=(bot1,bot2), options=Options(quiet=4, game_seed=random.randint(0, default_settings.max_seed)))
+    scores0, scores1 = runner.run()[0]
+    if scores0 > scores1:
+      return (scores0, scores1, scores0 - scores1, bot1)
+    elif scores1 > scores0:
+      return (scores0, scores1, scores1 - scores0, bot2)
+    else:
+      return (scores0, scores1, 0,'tie')
 
 
-                
-    except KeyboardInterrupt:
-        p.terminate()
-
-
-def versus(bot1, bot2, processes):
+def versus(matchNum,bot1, bot2, pool):
     """Launches a multithreaded comparison between two robot files.
     run_match() is run in separate processes, one for each CPU core, until 100
     matches are run.
@@ -143,26 +118,18 @@ def versus(bot1, bot2, processes):
     bot1Score = 0
     bot2Score = 0
 
-    matches_to_run = 50
-
-    pool = multiprocessing.Pool(processes)
-
-    print('launching comparison in', processes, 'processes')
+    matches_to_run = matchNum
 
     try:
         results = [pool.apply_async(run_match, (bot1, bot2))
-                   for i in range(matches_to_run)]
-
+                   for i in xrange(matches_to_run)]
         for r in results:
-            score = r.get(timeout=120)
-            print('battle result:',score[3], ' difference:', score[2])
-            bot1Score += score[0]
-            bot2Score += score[1]
-            
-            #otherwise, it's a tie, but we can ignore it
+            s0, s1, s2, s3 = r.get(timeout=120)
+            print('battle result:',s3, ' difference:', s2)
+            bot1Score += s0
+            bot2Score += s1
 
-        pool.close()
-        pool.join()
+            #otherwise, it's a tie, but we can ignore it
 
         print('overall:', bot1, bot1Score, ':', bot2Score, bot2)
         return bot1Score - bot2Score
@@ -174,13 +141,11 @@ def versus(bot1, bot2, processes):
             os.remove(bot)
         raise KeyboardInterrupt()
 
-def run_tourney(enemies, botfiles, processes):
+def run_tourney(matchNum,enemies, botfiles, pool):
     """Runs a tournament between all bot files in botfiles.
     Returns the winner of the tournament."""
     bestWin = ['', -5000]
     scores = {}
-    botfiles = copy.copy(botfiles)
-    botfilesCopy = copy.copy(botfiles)
     for bot1 in botfiles:
         filesRemaining.append(bot1)
         scores[bot1] = 0
@@ -189,12 +154,12 @@ def run_tourney(enemies, botfiles, processes):
             if bot1 in botScores[enemy] and botScores[enemy][bot1] != 0:
                 winScore = botScores[enemy][bot1]
                 print('ALREADY SCORED',str(bot1))
-            else:            
-                winScore = versus(bot1, enemy, processes)
+            else:
+                winScore = versus(matchNum,bot1, enemy, pool)
                 botScores[enemy][bot1] = winScore
             while winScore == 0:
                 print('VERSUS WAS A TIE. RETRYING...')
-                winScore = versus(bot1, enemy, processes)
+                winScore = versus(matchNum,bot1, enemy, pool)
                 print('Difference in score:',str(bestWin[1]))
             scores[bot1] += winScore
         print(scores)
@@ -202,24 +167,21 @@ def run_tourney(enemies, botfiles, processes):
         for bot2 in botfiles:
             if bot1 != bot2 and scores[bot1] == scores[bot2]:
                 print("Two bots have same score, finding the winner")
-                bestWin[1] = versus(bot1, bot2, processes)
+                bestWin[1] = versus(matchNum,bot1, bot2, pool)
                 while bestWin[1] == 0:
                     print("Wow. Another Tie.")
-                    bestWin[1] = versus(bot1, bot2, processes)
+                    bestWin[1] = versus(matchNum,bot1, bot2, pool)
                 if bestWin[1] < 0:
                     bestWin[0] = bot2
                 elif bestWin[1] > 0:
                     bestWin[0] = bot1
                 else:
-                    print("WTF? Impossible Tie.")               
+                    print("WTF? Impossible Tie.")
             elif scores[bot1] > bestWin[1]:
                 bestWin[1] = scores[bot1]
                 bestWin[0] = bot1
-            
 
-            
-
-    for bf in botfilesCopy:
+    for bf in botfiles:
         if not bf == bestWin[0]:
             print('removing',bf)
             os.remove(bf)
@@ -229,6 +191,7 @@ def run_tourney(enemies, botfiles, processes):
 
 
 def main():
+    
     parser = argparse.ArgumentParser(
         description="Optimize constant values for robotgame.")
     parser.add_argument(
@@ -238,14 +201,22 @@ def main():
     parser.add_argument(
         "enemies", type=str, help='A comma-separated list of the enemy files.')
     parser.add_argument(
+        "-pr", "--precision",
+        default=8.0,
+        type=float, help='The precision to start adjusting values at')
+    parser.add_argument(
+        "-m", "--matches",
+        default=100,
+        type=int, help='The number of matches to run per tourney')
+    parser.add_argument(
         "-p", "--processes",
         default=multiprocessing.cpu_count(),
         type=int, help='The number of processes to simulate in')
     args = vars(parser.parse_args())
-    eList = [str(item) for item in args['enemies'].split(',')]
+    eList = args['enemies'].split(',')
     for e in eList:
         botScores[e] = {}
-    best_value = optimize_variable(eList,
+    best_value = optimize_variable(args['precision'],args['matches'],eList,
         args['constant'], args['file'], processes=args['processes'])
     print(best_value)
 
