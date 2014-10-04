@@ -3,8 +3,13 @@ from __future__ import print_function
 import os
 import multiprocessing
 import re
+import shutil
+import argparse
 filesRemaining = []
 botScores = {}
+import random
+from rgkit.run import Runner, Options
+from rgkit.settings import settings as default_settings
 def make_variants(variable, robot_file, possibilities):
     """Makes variants of the file robot_file  with the constant variable
     changed for each possibility.
@@ -22,16 +27,13 @@ def make_variants(variable, robot_file, possibilities):
     filenames = []
     with open(robot_file, 'r') as f:
         lines = f.readlines()
-        #i = 0
-        #while not variable in lines[i]:
-        #    i += 1
+       
         for i, line in enumerate(lines):
           if variable in line:
             break
         assert '=' in line
         for p in possibilities:
             varandp = variable + str(p)
-            #lines[i] = variable + " = " + str(p) + '\n'
             lines[i] = "%s = %s\n" % (variable, p)
             filenames.append(varandp)
             with open(varandp, 'w') as pfile:
@@ -54,9 +56,6 @@ def get_current_value(variable, robot_file):
     file has the variable name in it.
     """
     with open(robot_file, 'r') as f:
-        #i = 0
-        #while not variable in lines[i]:
-        #    i += 1
         for i, line in enumerate(f):
           if variable in line:
             break
@@ -65,7 +64,6 @@ def get_current_value(variable, robot_file):
 
 
 def optimize_variable(precisionParam, matchNum, enemies, variable, robot_file, processes):
-    import shutil
     pool = multiprocessing.Pool(processes)
     """
     Creates a bunch of variants of the file robot_file, each with variable
@@ -100,11 +98,7 @@ def optimize_variable(precisionParam, matchNum, enemies, variable, robot_file, p
 
     return base_value
 
-def run_match(bot1, bot2):
-    #what is this???
-    import random
-    from rgkit.run import Runner, Options
-    from rgkit.settings import settings as default_settings
+def run_match(bot1, bot2):   
     #rgkit integration
     runner = Runner(player_files=(bot1,bot2), options=Options(quiet=4, game_seed=random.randint(0, default_settings.max_seed)))
     scores0, scores1 = runner.run()[0]
@@ -197,7 +191,7 @@ def run_tourney(matchNum,enemies, botfiles, pool):
 
 
 def main():
-    import argparse
+    
     parser = argparse.ArgumentParser(
         description="Optimize constant values for robotgame.")
     parser.add_argument(
